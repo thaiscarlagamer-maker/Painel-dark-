@@ -1,6 +1,8 @@
 --=============================================================
 -- 🌑 DARK PANEL - MM2 ADMIN  |  single LocalScript / executor
--- FIX: CanvasSize manual (compatível com qualquer executor)
+-- Inclui: Aimbot, Spinbot, No Walks, Key VIP (DARK),
+--         SpinbotV2, WalkSpeed, Wallbang, ESP
+-- Tecla K = alterna painel (PC) | Botão − = minimiza (mobile)
 --=============================================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -13,9 +15,11 @@ local LP     = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse  = LP:GetMouse()
 
+-- ⚠️ Key de acesso (oculta — não aparece em lugar nenhum da UI)
 local VIP_KEY = "DARK"
 local isVIP   = false
 
+-- Estado global
 local S = {
     Aimbot=false, Spinbot=false, SpinSpeed=20, NoClip=false,
     SpinbotV2=false, SpinbotV2Speed=200, WalkSpeed=16,
@@ -58,7 +62,7 @@ titleBar.Parent = main
 Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -70, 1, 0)
+title.Size = UDim2.new(1, -100, 1, 0)
 title.Position = UDim2.new(0, 15, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "🌑  DARK PANEL"
@@ -80,38 +84,84 @@ closeBtn.AutoButtonColor = false
 closeBtn.Parent = titleBar
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
+-- 🆕 BOTÃO MINIMIZAR ( − ) — mobile
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 28, 0, 28)
+minBtn.Position = UDim2.new(1, -66, 0, 7)
+minBtn.BackgroundColor3 = Color3.fromRGB(60, 50, 90)
+minBtn.Text = "−"
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 22
+minBtn.AutoButtonColor = false
+minBtn.Parent = titleBar
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 6)
+
+-- Botão flutuante para restaurar
 local openBtn = Instance.new("TextButton")
 openBtn.Size = UDim2.new(0, 44, 0, 44)
 openBtn.Position = UDim2.new(0, 20, 0, 20)
 openBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
 openBtn.Text = "🌑"
 openBtn.TextSize = 22
+openBtn.TextColor3 = Color3.new(1,1,1)
 openBtn.Visible = false
 openBtn.Parent = gui
 Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
+local openStroke = Instance.new("UIStroke", openBtn)
+openStroke.Color = Color3.fromRGB(130, 0, 220)
+openStroke.Thickness = 2
 
--- drag
+-- Drag da janela (title bar)
 local dragging, dragStart, startPos
 titleBar.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+    if i.UserInputType == Enum.UserInputType.MouseButton1
+    or i.UserInputType == Enum.UserInputType.Touch then
         dragging, dragStart, startPos = true, i.Position, main.Position
     end
 end)
 UserInputService.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+    or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
         main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
                                   startPos.Y.Scale, startPos.Y.Offset + d.Y)
     end
 end)
 UserInputService.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    if i.UserInputType == Enum.UserInputType.MouseButton1
+    or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
 end)
-closeBtn.MouseButton1Click:Connect(function() main.Visible = false; openBtn.Visible = true end)
-openBtn.MouseButton1Click:Connect(function()  main.Visible = true;  openBtn.Visible = false end)
 
 --=============================================================
--- SCROLLING FRAME  (CanvasSize manual → sem bugs)
+-- MINIMIZAR / RESTAURAR / TECLA K
+--=============================================================
+local function minimizePanel()
+    main.Visible = false
+    openBtn.Visible = true
+end
+
+local function restorePanel()
+    main.Visible = true
+    openBtn.Visible = false
+end
+
+minBtn.MouseButton1Click:Connect(minimizePanel)
+closeBtn.MouseButton1Click:Connect(minimizePanel)
+openBtn.MouseButton1Click:Connect(restorePanel)
+
+-- 🆕 TECLA K (PC) — toggle painel
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.K then
+        if main.Visible then minimizePanel() else restorePanel() end
+    end
+end)
+
+--=============================================================
+-- SCROLLING FRAME (CanvasSize manual — compatível com todo executor)
 --=============================================================
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size                  = UDim2.new(1, -20, 1, -55)
@@ -121,7 +171,7 @@ scroll.BorderSizePixel       = 0
 scroll.ScrollBarThickness    = 5
 scroll.ScrollBarImageColor3  = Color3.fromRGB(130, 0, 220)
 scroll.ClipsDescendants      = true
-scroll.CanvasSize            = UDim2.new(0, 0, 0, 1000)  -- fallback inicial
+scroll.CanvasSize            = UDim2.new(0, 0, 0, 1000)
 scroll.Parent                = main
 
 local layout = Instance.new("UIListLayout")
@@ -134,27 +184,16 @@ pad.PaddingTop    = UDim.new(0, 5)
 pad.PaddingBottom = UDim.new(0, 10)
 pad.Parent        = scroll
 
--- 🔑 FIX PRINCIPAL — recalcula CanvasSize sempre
 local function refreshCanvas()
     local ok, sz = pcall(function() return layout.AbsoluteContentSize end)
     if not ok or not sz then return end
-    local h = math.max(sz.Y + 20, 200)
-    scroll.CanvasSize = UDim2.new(0, 0, 0, h)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, math.max(sz.Y + 20, 200))
 end
-
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshCanvas)
-scroll.ChildAdded:Connect(function(c)
-    if c:IsA("GuiObject") then
-        task.defer(refreshCanvas)
-    end
-end)
+scroll.ChildAdded:Connect(function(c) if c:IsA("GuiObject") then task.defer(refreshCanvas) end end)
 scroll.ChildRemoved:Connect(refreshCanvas)
-
 task.spawn(function()
-    for i = 1, 6 do
-        task.wait(0.15)
-        refreshCanvas()
-    end
+    for _ = 1, 6 do task.wait(0.15); refreshCanvas() end
 end)
 
 --=============================================================
@@ -261,22 +300,29 @@ local function makeSlider(text, min, max, def, cb)
         cb(v)
     end
     bar.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             update(i)
         end
     end)
     UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
     end)
     UserInputService.InputChanged:Connect(function(i)
-        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+        or i.UserInputType == Enum.UserInputType.Touch) then
+            update(i)
+        end
     end)
     return f
 end
 
 --=============================================================
--- SEÇÃO BÁSICA
+-- SEÇÃO BÁSICO
 --=============================================================
 makeSection("▸ BÁSICO")
 makeToggle("Aimbot",             function(v) S.Aimbot  = v end)
@@ -363,7 +409,7 @@ reg(makeToggle("Tiro no Walk (Wallbang)",   function(v) S.Wallbang  = v end))
 reg(makeToggle("ESP",                       function(v) S.ESP       = v end))
 reg(makeSlider("ESP Range (m)", 1, 10000, 500, function(v) S.ESPRange = v end))
 
-submit.MouseButton1Click:Connect(function()
+local function submitKey()
     if keyBox.Text == VIP_KEY then
         isVIP = true
         keySection.Visible = false
@@ -374,7 +420,10 @@ submit.MouseButton1Click:Connect(function()
         task.wait(1.5)
         statusLbl.Text = ""
     end
-end)
+end
+
+submit.MouseButton1Click:Connect(submitKey)
+keyBox.FocusLost:Connect(function(enter) if enter then submitKey() end end)
 
 --=============================================================
 -- AIMBOT
@@ -563,7 +612,7 @@ end
 pcall(setupWallbang)
 
 --=============================================================
--- REFRESH FINAL (garante que aparece tudo após criação)
+-- REFRESH FINAL
 --=============================================================
 task.defer(function()
     task.wait(0.3)
